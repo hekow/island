@@ -22,7 +22,7 @@ case class Transform(materials: Map[PrimaryResource, Int])  extends Action {
     materials foreach { case (res, amount) =>
       require(game.collectedResources.getOrElse(res, 0) >= amount,
               s"Cannot transform with material you do not have: [$res / $amount]")
-      require(amount>0,
+      require(amount>=0,
         s"Cannot transform with negative material [$amount]")
     }
     val (k, p) = produce(game)

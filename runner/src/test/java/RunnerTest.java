@@ -46,6 +46,7 @@ public class RunnerTest {
 				.backBefore(7000)
 				.withCrew(15)
 				.collecting(1000, "WOOD")
+				.collecting(10, "FLOWER")
 				.storingInto(out.toAbsolutePath().toString())
 				.fire();
 	}

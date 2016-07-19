@@ -21,6 +21,7 @@ import java.util.Map;
 import eu.ace_design.island.viewer.PoiJSONViewer;
 import eu.ace_design.island.viewer.svg.FogOfWar;
 import eu.ace_design.island.viewer.svg.FogOfWarViewer;
+import org.json.JSONObject;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.JavaConversions$;
@@ -33,6 +34,7 @@ import scala.util.Random;
  */
 public class Runner {
 
+	JSONObject result;
 	/**
 	 * Instantiate a runner using an IExplorerRaid as playing entity
 	 * @param c the class to instantiate
@@ -141,8 +143,9 @@ public class Runner {
 	/**
 	 * Trigger the game engine using the defined configuration
 	 */
-	public void fire() {
+	public JSONObject fire() {
 		required();
+		long ms = System.currentTimeMillis();
 		Random rand = new Random(seed);
 		Seq<POIGenerator> creeks =
 				Nil$.MODULE$.$colon$colon((POIGenerator) new POIGenerators.WithCreeks(howManyCreeks)).toSeq();
@@ -155,7 +158,7 @@ public class Runner {
 								 theBoard.copy$default$5(), loc);
 		java.util.Set<Tuple2<Resource,Object>> objs = new java.util.HashSet<Tuple2<Resource,Object>>();
 		for(Resource r: this.contracts.keySet()) {
-			objs.add(new Tuple2<Resource, Object>(r, this.contracts.get(r)));
+			objs.add(new Tuple2<>(r, this.contracts.get(r)));
 		}
 		Game theGame =
 				Game$.MODULE$.apply(Budget$.MODULE$.apply(budget),
@@ -168,6 +171,14 @@ public class Runner {
 				         theGame.copy$default$10(), theGame.copy$default$11());
 
 		startEngine(theGame, theBoard);
+
+		if(result!=null)
+		{
+			ms = System.currentTimeMillis()-ms;
+			result.put("ms",ms);
+		}
+
+		return result;
 	}
 
 
@@ -210,6 +221,7 @@ public class Runner {
 		Engine engine = new Engine(b,g, new Random(seed), timeoutDelay);
 		Tuple2<scala.collection.Seq<ExplorationEvent>,Game> results = null;
 		PrintStream old = System.out;
+		PrintStream oldErr = System.err;
 		try {
 
 			System.setOut(new PrintStream(new ByteArrayOutputStream()));
@@ -221,7 +233,7 @@ public class Runner {
 			e.printStackTrace();
 		}
 		finally {
-			System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err)));
+			System.setErr(oldErr);
 			System.setOut(old);
 		}
 		if(results != null) {
@@ -241,7 +253,9 @@ public class Runner {
 	 * @param b
 	 */
 	private void processResults(scala.collection.Seq<ExplorationEvent> events, Game g, GameBoard b) throws IOException {
-		if(g.isOK()) {
+        this.result = new GameWrapper(g,b,theIsland).toJson();
+
+        if(g.isOK()) {
 			System.out.println("Remaining budget: " + g.budget().remaining());
 			System.out.println("Collected resources:");
 			for(Resource r: JavaConversions$.MODULE$.asJavaCollection(g.collectedResources().keys())) {
@@ -257,6 +271,7 @@ public class Runner {
 			exportPois(b);
 		}
 	}
+
 
 	private void exportPois(GameBoard b) {
 		System.out.println("Generating JSON POIs file");
@@ -285,13 +300,15 @@ public class Runner {
 			for(ExplorationEvent evt: JavaConversions$.MODULE$.asJavaIterable(events)) {
 				writer.print(evt.toJson() + ",");
 			}
-			writer.print("{}]");
+
+            writer.print("{}]");
 		} catch(IOException ioe) {
 			System.err.println("Unable to write JSON log file");
 		} finally {
 			writer.close();
 		}
 	}
+
 
 	/**
 	 * Generate a picture of the map
